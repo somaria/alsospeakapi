@@ -15,6 +15,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Install pnpm in the builder stage
+RUN npm install -g pnpm
+
 # Generate Prisma client
 RUN npx prisma generate
 
@@ -45,7 +48,7 @@ COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/prisma ./prisma
 
 # Create and add entrypoint script
-RUN echo '#!/bin/sh\nset -e\n\n# Ensure data directory exists and has correct permissions\necho "Setting up data directory..."\nmkdir -p /app/data\nchmod 777 /app/data\n\n# Check if database file exists and set permissions if it does\nif [ -f /app/data/db.sqlite ]; then\n  echo "Setting permissions on existing database file..."\n  chmod 666 /app/data/db.sqlite\nfi\n\n# Run Prisma migrations\necho "Running Prisma migrations..."\nnpx prisma migrate deploy\n\n# Run Prisma db push as a fallback (for SQLite)\necho "Running Prisma db push..."\nnpx prisma db push\n\n# Ensure the database file has correct permissions after migration\nif [ -f /app/data/db.sqlite ]; then\n  echo "Setting permissions on database file after migration..."\n  chmod 666 /app/data/db.sqlite\nfi\n\n# Start the application\necho "Starting the application..."\nexec "$@"' > ./entrypoint.sh
+RUN echo '#!/bin/sh\nset -e\n\n# Ensure data directory exists and has correct permissions\necho "Setting up data directory..."\nmkdir -p /app/data\nchmod 777 /app/data\n\n# Check if database file exists and set permissions if it does\nif [ -f /app/data/alsospeakapi.db ]; then\n  echo "Setting permissions on existing database file..."\n  chmod 666 /app/data/alsospeakapi.db\nfi\n\n# Run Prisma migrations\necho "Running Prisma migrations..."\nnpx prisma migrate deploy\n\n# Run Prisma db push as a fallback (for SQLite)\necho "Running Prisma db push..."\nnpx prisma db push\n\n# Ensure the database file has correct permissions after migration\nif [ -f /app/data/alsospeakapi.db ]; then\n  echo "Setting permissions on database file after migration..."\n  chmod 666 /app/data/alsospeakapi.db\nfi\n\n# Start the application\necho "Starting the application..."\nexec "$@"' > ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
 # Expose the port the app will run on
