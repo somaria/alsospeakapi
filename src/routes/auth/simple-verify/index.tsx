@@ -1,5 +1,5 @@
 import { component$ } from '@builder.io/qwik';
-import { routeLoader$, Form, routeAction$, zod$, z, Link, useLocation } from '@builder.io/qwik-city';
+import { routeLoader$, Form, routeAction$, zod$, z, Link } from '@builder.io/qwik-city';
 import { verifySimpleMagicLinkToken } from '~/utils/simple-auth';
 
 // Verify the token and create a session
@@ -91,7 +91,6 @@ export const useManualVerify = routeAction$(
 export default component$(() => {
   const verifyResult = useVerifyToken();
   const manualVerify = useManualVerify();
-  const loc = useLocation();
   
   return (
     <div class="flex min-h-screen flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -151,14 +150,14 @@ export default component$(() => {
                 </div>
               </div>
               
-              {manualVerify.value?.fieldErrors?.email && (
+              {manualVerify.value && manualVerify.value.fieldErrors?.email && (
                 <div class="text-red-500 text-sm">{manualVerify.value.fieldErrors.email}</div>
               )}
               
               <div>
                 <button
                   type="submit"
-                  class="group relative flex w-full justify-center rounded-md bg-indigo-600 py-2 px-3 text-sm font-semibold text-white hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                  class="group relative flex w-full justify-center rounded-md bg-indigo-600 py-2 px-3 text-sm font-semibold text-white hover:bg-indigo-500 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                 >
                   Verify Email
                 </button>
