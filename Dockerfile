@@ -49,40 +49,9 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/entrypoint.sh ./entrypoint.sh
 
-# Create entrypoint script
-RUN echo '#!/bin/sh' > ./entrypoint.sh && \
-    echo 'set -e' >> ./entrypoint.sh && \
-    echo '' >> ./entrypoint.sh && \
-    echo '# Ensure data directory exists and has correct permissions' >> ./entrypoint.sh && \
-    echo 'echo "Setting up data directory..."' >> ./entrypoint.sh && \
-    echo 'mkdir -p /app/data' >> ./entrypoint.sh && \
-    echo 'chmod 777 /app/data' >> ./entrypoint.sh && \
-    echo '' >> ./entrypoint.sh && \
-    echo '# Check if database file exists and set permissions if it does' >> ./entrypoint.sh && \
-    echo 'if [ -f /app/data/alsospeakapi.db ]; then' >> ./entrypoint.sh && \
-    echo '  echo "Setting permissions on existing database file..."' >> ./entrypoint.sh && \
-    echo '  chmod 666 /app/data/alsospeakapi.db' >> ./entrypoint.sh && \
-    echo 'fi' >> ./entrypoint.sh && \
-    echo '' >> ./entrypoint.sh && \
-    echo '# Run Prisma migrations' >> ./entrypoint.sh && \
-    echo 'echo "Running Prisma migrations..."' >> ./entrypoint.sh && \
-    echo 'npx prisma migrate deploy' >> ./entrypoint.sh && \
-    echo '' >> ./entrypoint.sh && \
-    echo '# Run Prisma db push as a fallback (for SQLite)' >> ./entrypoint.sh && \
-    echo 'echo "Running Prisma db push..."' >> ./entrypoint.sh && \
-    echo 'npx prisma db push' >> ./entrypoint.sh && \
-    echo '' >> ./entrypoint.sh && \
-    echo '# Ensure the database file has correct permissions after migration' >> ./entrypoint.sh && \
-    echo 'if [ -f /app/data/alsospeakapi.db ]; then' >> ./entrypoint.sh && \
-    echo '  echo "Setting permissions on database file after migration..."' >> ./entrypoint.sh && \
-    echo '  chmod 666 /app/data/alsospeakapi.db' >> ./entrypoint.sh && \
-    echo 'fi' >> ./entrypoint.sh && \
-    echo '' >> ./entrypoint.sh && \
-    echo '# Start the application' >> ./entrypoint.sh && \
-    echo 'echo "Starting the application..."' >> ./entrypoint.sh && \
-    echo 'exec "$@"' >> ./entrypoint.sh
-
+# Make sure the entrypoint script is executable
 RUN chmod +x ./entrypoint.sh
 
 # Expose the port the app will run on
