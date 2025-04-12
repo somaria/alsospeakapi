@@ -35,6 +35,9 @@ RUN pnpm run build.server || echo "Server build completed with warnings"
 RUN ls -la server/ || echo "Server directory not found"
 RUN find . -name "entry.express.js" || echo "entry.express.js not found"
 
+# Run Prisma migrations during build
+RUN npx prisma migrate deploy || echo "Migration failed but continuing"
+
 # Production image, copy all the files and run the server
 FROM base AS runner
 WORKDIR /app
@@ -58,13 +61,8 @@ COPY --from=builder /app/prisma ./prisma
 RUN ls -la server/ || echo "Server directory not found in runner"
 RUN find . -name "entry.express.js" || echo "entry.express.js not found in runner"
 
-# Create and add entrypoint script
-RUN echo '#!/bin/sh\nset -e\n\n# Ensure data directory exists and has correct permissions\necho "Setting up data directory..."\nmkdir -p /app/data\nchmod 777 /app/data\n\n# Check if database file exists and set permissions if it does\nif [ -f /app/data/alsospeakapi.db ]; then\n  echo "Setting permissions on existing database file..."\n  chmod 666 /app/data/alsospeakapi.db\nfi\n\n# Run Prisma migrations\necho "Running Prisma migrations..."\nnpx prisma migrate deploy\n\n# Run Prisma db push as a fallback (for SQLite)\necho "Running Prisma db push..."\nnpx prisma db push\n\n# Ensure the database file has correct permissions after migration\nif [ -f /app/data/alsospeakapi.db ]; then\n  echo "Setting permissions on database file after migration..."\n  chmod 666 /app/data/alsospeakapi.db\nfi\n\n# Debug: List server directory before starting\nls -la /app/server/\n\n# Start the application\necho "Starting the application..."\nexec "$@"' > ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh
-
 # Expose the port the app will run on
 EXPOSE 3000
 
-# Use the custom entrypoint script
-ENTRYPOINT ["./entrypoint.sh"]
+# Command to run the application
 CMD ["node", "server/entry.express.js"]
