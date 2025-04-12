@@ -37,7 +37,7 @@ WORKDIR /app
 
 ENV NODE_ENV production
 
-# Install SQLite tools
+# Install SQLite tools and other dependencies
 RUN apk add --no-cache sqlite
 
 # Create data directory for SQLite database
@@ -53,6 +53,9 @@ COPY --from=builder /app/entrypoint.sh ./entrypoint.sh
 
 # Make sure the entrypoint script is executable
 RUN chmod +x ./entrypoint.sh
+
+# Generate Prisma client again in the runner stage to ensure it's properly built for this environment
+RUN cd /app && npx prisma generate
 
 # Expose the port the app will run on
 EXPOSE 3000

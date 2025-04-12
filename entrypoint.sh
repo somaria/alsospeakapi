@@ -12,6 +12,10 @@ if [ -f /app/data/alsospeakapi.db ]; then
   chmod 666 /app/data/alsospeakapi.db
 fi
 
+# Regenerate Prisma client to ensure it's properly built for this environment
+echo "Regenerating Prisma client..."
+npx prisma generate
+
 # Run Prisma migrations
 echo "Running Prisma migrations..."
 npx prisma migrate deploy

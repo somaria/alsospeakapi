@@ -1,70 +1,87 @@
 // Use dynamic import to handle both browser and server environments
 let PrismaClient: any;
+let prismaClientInstance: any = null;
 
 // Check if we're in a Node.js environment
 const isNode = typeof process !== 'undefined' && typeof process.versions === 'object';
 
-if (isNode) {
+// Function to create a new Prisma client instance
+function createPrismaClient() {
+  if (!PrismaClient) {
+    console.error('PrismaClient class is not defined');
+    return null;
+  }
+  
   try {
-    // For server environment in CommonJS
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { PrismaClient: ServerPrismaClient } = require('@prisma/client');
-    PrismaClient = ServerPrismaClient;
-    console.log('Using server PrismaClient (CommonJS)');
+    return new PrismaClient({
+      log: ['query', 'info', 'warn', 'error'],
+    });
   } catch (error) {
+    console.error('Error creating PrismaClient instance:', error);
+    return null;
+  }
+}
+
+// Initialize Prisma client
+async function initializePrismaClient() {
+  if (isNode) {
     try {
-      // For server environment in ESM
-      // We need to use dynamic import for ESM compatibility
-      console.log('Attempting to use ESM import for PrismaClient');
+      // For server environment in CommonJS
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { PrismaClient: ServerPrismaClient } = require('@prisma/client');
+      PrismaClient = ServerPrismaClient;
+      console.log('Using server PrismaClient (CommonJS)');
       
-      // Temporary class until the import completes
-      PrismaClient = class TemporaryPrismaClient {
-        constructor() {
-          console.log('Initializing temporary PrismaClient while ESM import completes');
-        }
-      };
+      // Create and return a new instance
+      return createPrismaClient();
+    } catch (commonJsError) {
+      console.log('CommonJS import failed, trying ESM import:', (commonJsError as Error).message);
       
-      // This will be executed asynchronously
-      import('@prisma/client').then(module => {
+      try {
+        // For server environment in ESM
+        const module = await import('@prisma/client');
+        
         // In ESM, the module structure might be different
-        // @ts-ignore - TypeScript doesn't know the structure of the dynamically imported module
-        const ClientClass = module.PrismaClient || (module.default && module.default.PrismaClient);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ClientClass = (module as any).PrismaClient || ((module as any).default && (module as any).default.PrismaClient);
+        
         if (ClientClass) {
           PrismaClient = ClientClass;
           console.log('Successfully loaded PrismaClient via ESM import');
           
-          // Initialize Prisma client after dynamic import
-          const globalForPrisma = global as unknown as { prisma: any };
-          if (!globalForPrisma.prisma) {
-            globalForPrisma.prisma = new PrismaClient({
-              log: ['query', 'info', 'warn', 'error'],
-            });
-          }
+          // Create and return a new instance
+          return createPrismaClient();
         } else {
           console.error('PrismaClient not found in ESM module');
+          return null;
         }
-      }).catch(e => {
-        console.error('Failed to import PrismaClient (ESM):', e);
-      });
-    } catch (e) {
-      console.error('Failed to import PrismaClient:', e);
-    }
-  }
-} else {
-  // For browser environment, use the generated client or a dummy
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { PrismaClient: BrowserPrismaClient } = require('../generated/prisma');
-    PrismaClient = BrowserPrismaClient;
-    console.log('Using browser PrismaClient');
-  } catch (e) {
-    console.error('Failed to import browser PrismaClient:', e);
-    // Create a dummy client for browser environments where Prisma isn't available
-    PrismaClient = class DummyPrismaClient {
-      constructor() {
-        console.warn('Using dummy PrismaClient in browser environment');
+      } catch (esmError) {
+        console.error('Failed to import PrismaClient (ESM):', esmError);
+        return null;
       }
-    };
+    }
+  } else {
+    // For browser environment, use the generated client or a dummy
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { PrismaClient: BrowserPrismaClient } = require('../generated/prisma');
+      PrismaClient = BrowserPrismaClient;
+      console.log('Using browser PrismaClient');
+      
+      // Create and return a new instance
+      return createPrismaClient();
+    } catch (e) {
+      console.error('Failed to import browser PrismaClient:', e);
+      
+      // Create a dummy client for browser environments where Prisma isn't available
+      PrismaClient = class DummyPrismaClient {
+        constructor() {
+          console.warn('Using dummy PrismaClient in browser environment');
+        }
+      };
+      
+      return new PrismaClient();
+    }
   }
 }
 
@@ -72,10 +89,54 @@ if (isNode) {
 // exhausting your database connection limit.
 const globalForPrisma = global as unknown as { prisma: any };
 
-// Initialize Prisma client
-export const prisma = globalForPrisma.prisma || new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
-});
+// Get or initialize the Prisma client
+export const prisma = globalForPrisma.prisma || (() => {
+  if (prismaClientInstance) {
+    return prismaClientInstance;
+  }
+  
+  // Initialize synchronously first with a basic client
+  if (isNode) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { PrismaClient: SyncPrismaClient } = require('@prisma/client');
+      prismaClientInstance = new SyncPrismaClient({
+        log: ['query', 'info', 'warn', 'error'],
+      });
+      console.log('Initialized PrismaClient synchronously');
+    } catch (error) {
+      console.error('Failed to initialize PrismaClient synchronously:', error);
+      // Create a temporary client that will be replaced
+      prismaClientInstance = {
+        user: {
+          findUnique: async () => null,
+          create: async () => null,
+          update: async () => null,
+        }
+      };
+      
+      // Try async initialization
+      initializePrismaClient().then(client => {
+        if (client) {
+          prismaClientInstance = client;
+          globalForPrisma.prisma = client;
+          console.log('Replaced temporary client with real PrismaClient');
+        }
+      });
+    }
+  } else {
+    // Browser environment - create a dummy client
+    prismaClientInstance = {
+      user: {
+        findUnique: async () => null,
+        create: async () => null,
+        update: async () => null,
+      }
+    };
+  }
+  
+  return prismaClientInstance;
+})();
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
@@ -107,18 +168,15 @@ export async function createUser(email: string) {
   }
 }
 
-export async function updateUserLastLogin(email: string) {
+export async function updateUserVerification(id: string, emailVerified: boolean) {
   try {
-    console.log(`Updating last login for user with email: ${email}`);
+    console.log(`Updating user verification status: ${id}, ${emailVerified}`);
     return await prisma.user.update({
-      where: { email },
-      data: {
-        lastLoginAt: new Date(),
-        emailVerified: true,
-      },
+      where: { id },
+      data: { emailVerified },
     });
   } catch (error) {
-    console.error('Error updating user last login:', error);
+    console.error('Error updating user verification:', error);
     throw error;
   }
 }
@@ -137,6 +195,22 @@ export async function findOrCreateUser(email: string) {
     return await createUser(email);
   } catch (error) {
     console.error('Error in findOrCreateUser:', error);
+    throw error;
+  }
+}
+
+export async function updateUserLastLogin(email: string) {
+  try {
+    console.log(`Updating last login for user with email: ${email}`);
+    return await prisma.user.update({
+      where: { email },
+      data: {
+        lastLoginAt: new Date(),
+        emailVerified: true,
+      },
+    });
+  } catch (error) {
+    console.error('Error updating user last login:', error);
     throw error;
   }
 }
