@@ -1,5 +1,6 @@
 import { component$, Slot } from "@builder.io/qwik";
 import type { RequestHandler } from "@builder.io/qwik-city";
+import Navbar from "~/components/navbar/navbar";
 
 export const onGet: RequestHandler = async ({ cacheControl }) => {
   // Control caching for this request for best performance and to reduce hosting costs:
@@ -13,5 +14,17 @@ export const onGet: RequestHandler = async ({ cacheControl }) => {
 };
 
 export default component$(() => {
-  return <Slot />;
+  return (
+    <div class="min-h-screen flex flex-col">
+      <Navbar />
+      <main class="flex-grow container mx-auto px-4 py-8">
+        <Slot />
+      </main>
+      <footer class="bg-gray-800 text-white py-6">
+        <div class="container mx-auto px-4">
+          <p class="text-center"> {new Date().getFullYear()} AlsoSpeak. All rights reserved.</p>
+        </div>
+      </footer>
+    </div>
+  );
 });
