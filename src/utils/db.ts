@@ -1,16 +1,64 @@
 // Use dynamic import to handle both browser and server environments
 let PrismaClient: any;
-try {
-  // For server environment
-  const { PrismaClient: ServerPrismaClient } = require('@prisma/client');
-  PrismaClient = ServerPrismaClient;
-} catch (error) {
-  // For browser environment, use the generated client
+
+// Check if we're in a Node.js environment
+const isNode = typeof process !== 'undefined' && typeof process.versions === 'object';
+
+if (isNode) {
   try {
+    // For server environment in CommonJS
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { PrismaClient: ServerPrismaClient } = require('@prisma/client');
+    PrismaClient = ServerPrismaClient;
+    console.log('Using server PrismaClient (CommonJS)');
+  } catch (error) {
+    try {
+      // For server environment in ESM
+      // We need to use dynamic import for ESM compatibility
+      console.log('Attempting to use ESM import for PrismaClient');
+      
+      // Temporary class until the import completes
+      PrismaClient = class TemporaryPrismaClient {
+        constructor() {
+          console.log('Initializing temporary PrismaClient while ESM import completes');
+        }
+      };
+      
+      // This will be executed asynchronously
+      import('@prisma/client').then(module => {
+        // In ESM, the module structure might be different
+        // @ts-ignore - TypeScript doesn't know the structure of the dynamically imported module
+        const ClientClass = module.PrismaClient || (module.default && module.default.PrismaClient);
+        if (ClientClass) {
+          PrismaClient = ClientClass;
+          console.log('Successfully loaded PrismaClient via ESM import');
+          
+          // Initialize Prisma client after dynamic import
+          const globalForPrisma = global as unknown as { prisma: any };
+          if (!globalForPrisma.prisma) {
+            globalForPrisma.prisma = new PrismaClient({
+              log: ['query', 'info', 'warn', 'error'],
+            });
+          }
+        } else {
+          console.error('PrismaClient not found in ESM module');
+        }
+      }).catch(e => {
+        console.error('Failed to import PrismaClient (ESM):', e);
+      });
+    } catch (e) {
+      console.error('Failed to import PrismaClient:', e);
+    }
+  }
+} else {
+  // For browser environment, use the generated client or a dummy
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { PrismaClient: BrowserPrismaClient } = require('../generated/prisma');
     PrismaClient = BrowserPrismaClient;
+    console.log('Using browser PrismaClient');
   } catch (e) {
-    console.error('Failed to import PrismaClient:', e);
+    console.error('Failed to import browser PrismaClient:', e);
     // Create a dummy client for browser environments where Prisma isn't available
     PrismaClient = class DummyPrismaClient {
       constructor() {
