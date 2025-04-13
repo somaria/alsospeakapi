@@ -1,4 +1,5 @@
 {
   "allow_gitignore_files": true,
-  "package_manager": "pnpm"
+  "package_manager": "pnpm",
+  "styling_framework": "tailwind"
 }
