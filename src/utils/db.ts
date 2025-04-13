@@ -215,34 +215,6 @@ export async function updateUserLastLogin(email: string) {
   }
 }
 
-export async function saveUsedToken(token: string, email: string) {
-  try {
-    console.log(`Saving used token for email: ${email}`);
-    return await prisma.usedToken.create({
-      data: {
-        token,
-        email,
-      },
-    });
-  } catch (error) {
-    console.error('Error saving used token:', error);
-    throw error;
-  }
-}
-
-export async function isTokenUsed(token: string) {
-  try {
-    console.log(`Checking if token is used: ${token.substring(0, 10)}...`);
-    const usedToken = await prisma.usedToken.findUnique({
-      where: { token },
-    });
-    return !!usedToken;
-  } catch (error) {
-    console.error('Error checking if token is used:', error);
-    throw error;
-  }
-}
-
 export async function createSession(userId: string, sessionToken: string, expires: Date) {
   try {
     console.log(`Creating session for user: ${userId}`);

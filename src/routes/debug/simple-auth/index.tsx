@@ -69,10 +69,11 @@ export const useDebugAuth = routeLoader$(async ({ cookie }) => {
 
 // Action to generate a test token
 export const useGenerateToken = routeAction$(async ({ email }) => {
-  if (!email) {
+  // Validate inputs
+  if (typeof email !== 'string' || !email) {
     return {
       success: false,
-      message: 'Email is required',
+      message: 'Email is required and must be a string',
     };
   }
   
@@ -93,18 +94,21 @@ export const useGenerateToken = routeAction$(async ({ email }) => {
 
 // Action to verify a token
 export const useVerifyToken = routeAction$(async ({ token }) => {
-  if (!token) {
+  // Validate inputs
+  if (typeof token !== 'string' || !token) {
     return {
       success: false,
-      message: 'Token is required',
+      message: 'Token is required and must be a string',
+      tokenInfo: { length: 0, prefix: 'Invalid token type' } // Provide default info
     };
   }
   
+  const secret = process.env.AUTH_SECRET || 'alsospeak-language-learning-api-secret-key';
+  console.log('Using secret for token verification:', secret.substring(0, 3) + '...');
+  
+  console.log('Debug verify token:', token.substring(0, 20) + '...');
+  
   try {
-    console.log('Debug verify token:', token.substring(0, 20) + '...');
-    const secret = process.env.AUTH_SECRET || 'alsospeak-language-learning-api-secret-key';
-    console.log('Using secret for token verification:', secret.substring(0, 3) + '...');
-    
     const decoded = verifySimpleToken(token, secret);
     
     if (!decoded) {
@@ -132,6 +136,10 @@ export const useVerifyToken = routeAction$(async ({ token }) => {
       success: false,
       message: 'Error verifying token',
       error: error instanceof Error ? error.message : String(error),
+      tokenInfo: {
+        length: token.length,
+        prefix: token.substring(0, 20) + '...',
+      },
     };
   }
 });
@@ -202,7 +210,7 @@ export default component$(() => {
                 <input 
                   type="text" 
                   value={generateAction.value.token} 
-                  readonly
+                  readOnly
                   class="w-full p-2 border rounded text-sm font-mono"
                 />
                 <button 
@@ -218,7 +226,7 @@ export default component$(() => {
                 <input 
                   type="text" 
                   value={generateAction.value.magicLinkUrl} 
-                  readonly
+                  readOnly
                   class="w-full p-2 border rounded text-sm font-mono"
                 />
                 <button 

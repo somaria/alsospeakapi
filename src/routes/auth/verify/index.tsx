@@ -1,7 +1,6 @@
 import { component$ } from '@builder.io/qwik';
 import { routeLoader$, useLocation, Form, routeAction$, type DocumentHead } from '@builder.io/qwik-city';
-import { verifyMagicLinkToken } from '~/utils/auth';
-import { findOrCreateUser, updateUserLastLogin, createSession } from '~/utils/db';
+import { verifyToken } from '~/utils/auth';
 
 // Route loader to verify the token on page load
 export const useVerifyToken = routeLoader$(async ({ query, cookie, redirect, url }) => {
@@ -35,7 +34,7 @@ export const useVerifyToken = routeLoader$(async ({ query, cookie, redirect, url
   
   console.log('Processing token:', token.substring(0, 20) + '...');
   
-  const decoded = await verifyMagicLinkToken(token);
+  const decoded = await verifyToken(token);
   
   if (!decoded) {
     return { 
@@ -47,33 +46,12 @@ export const useVerifyToken = routeLoader$(async ({ query, cookie, redirect, url
   console.log('Token verified successfully for email:', decoded.email);
 
   try {
-    // Find or create the user in the database
-    console.log('Finding or creating user with email:', decoded.email);
-    const user = await findOrCreateUser(decoded.email);
-    
-    // Try to update the last login time
-    try {
-      console.log('Updating last login for user:', decoded.email);
-      await updateUserLastLogin(decoded.email);
-    } catch (updateError) {
-      console.error('Error updating last login, but continuing:', updateError);
-      // Continue with authentication even if update fails
-    }
-    
-    // Create a session
-    const expires = new Date();
-    expires.setDate(expires.getDate() + 7); // 7 days from now
-    
-    const sessionToken = crypto.randomUUID();
-    await createSession(user.id, sessionToken, expires);
-    
     // Set authentication cookie
-    console.log('Setting authentication cookie for user:', decoded.email);
+    console.log('Setting authentication cookie for email:', decoded.email);
     cookie.set('auth', JSON.stringify({ 
       email: decoded.email, 
       authenticated: true,
-      userId: user.id,
-      sessionToken
+      lastLoginAt: new Date().toISOString()
     }), {
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
@@ -86,7 +64,7 @@ export const useVerifyToken = routeLoader$(async ({ query, cookie, redirect, url
     console.log('Authentication successful, redirecting to:', redirectTo);
     throw redirect(302, redirectTo);
   } catch (error) {
-    console.error('Database error during authentication:', error);
+    console.error('Error during authentication:', error);
     return {
       valid: false,
       message: 'An error occurred during authentication'
@@ -108,7 +86,7 @@ export const useManualVerify = routeAction$(async ({ token }, { cookie, redirect
     };
   }
   
-  const decoded = await verifyMagicLinkToken(token as string);
+  const decoded = await verifyToken(token as string);
   
   if (!decoded) {
     return { 
@@ -120,33 +98,12 @@ export const useManualVerify = routeAction$(async ({ token }, { cookie, redirect
   console.log('Token verified successfully for email:', decoded.email);
 
   try {
-    // Find or create the user in the database
-    console.log('Finding or creating user with email:', decoded.email);
-    const user = await findOrCreateUser(decoded.email);
-    
-    // Try to update the last login time
-    try {
-      console.log('Updating last login for user:', decoded.email);
-      await updateUserLastLogin(decoded.email);
-    } catch (updateError) {
-      console.error('Error updating last login, but continuing:', updateError);
-      // Continue with authentication even if update fails
-    }
-    
-    // Create a session
-    const expires = new Date();
-    expires.setDate(expires.getDate() + 7); // 7 days from now
-    
-    const sessionToken = crypto.randomUUID();
-    await createSession(user.id, sessionToken, expires);
-    
     // Set authentication cookie
-    console.log('Setting authentication cookie for user:', decoded.email);
+    console.log('Setting authentication cookie for email:', decoded.email);
     cookie.set('auth', JSON.stringify({ 
       email: decoded.email, 
       authenticated: true,
-      userId: user.id,
-      sessionToken
+      lastLoginAt: new Date().toISOString()
     }), {
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
@@ -159,7 +116,7 @@ export const useManualVerify = routeAction$(async ({ token }, { cookie, redirect
     console.log('Authentication successful, redirecting to:', redirectTo);
     throw redirect(302, redirectTo);
   } catch (error) {
-    console.error('Database error during authentication:', error);
+    console.error('Error during authentication:', error);
     return {
       success: false,
       message: 'An error occurred during authentication'

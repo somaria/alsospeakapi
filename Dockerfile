@@ -28,8 +28,8 @@ RUN npx prisma generate
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV SKIP_TYPECHECK=true
 ENV SKIP_LINT=true
-RUN pnpm run build || echo "Build completed with warnings"
-RUN pnpm run build.server || echo "Server build completed with warnings"
+RUN pnpm run build
+RUN pnpm run build.server
 
 # Production image, copy all the files and run the server
 FROM base AS runner

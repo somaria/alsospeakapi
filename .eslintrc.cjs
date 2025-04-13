@@ -39,4 +39,16 @@ module.exports = {
     "@typescript-eslint/consistent-type-imports": "warn",
     "@typescript-eslint/no-unnecessary-condition": "warn",
   },
+  overrides: [
+    {
+      files: [
+        "**/node_modules/.prisma/client/index.d.ts",
+        "**/src/generated/**",
+      ],
+      rules: {
+        "@typescript-eslint/no-unused-vars": "off", // Disable for generated Prisma types
+        "@typescript-eslint/no-unnecessary-type-constraint": "off" // Disable for generated Prisma types
+      },
+    },
+  ],
 };

@@ -1,28 +1,43 @@
 import { component$, Slot } from "@builder.io/qwik";
 import type { RequestHandler } from "@builder.io/qwik-city";
-import Navbar from "~/components/navbar/navbar";
+import { routeLoader$ } from '@builder.io/qwik-city';
+import Nav from '~/components/navigation/nav';
 
 export const onGet: RequestHandler = async ({ cacheControl }) => {
-  // Control caching for this request for best performance and to reduce hosting costs:
-  // https://qwik.dev/docs/caching/
   cacheControl({
-    // Always serve a cached response by default, up to a week stale
     staleWhileRevalidate: 60 * 60 * 24 * 7,
-    // Max once every 5 seconds, revalidate on the server to get a fresh version of this page
     maxAge: 5,
   });
 };
 
+// Server-side auth check
+export const useAuthCheck = routeLoader$(async ({ cookie }) => {
+  const authCookie = cookie.get('auth');
+  if (!authCookie) {
+    return { isAuthenticated: false };
+  }
+  
+  try {
+    const auth = JSON.parse(authCookie.value);
+    return { isAuthenticated: auth.authenticated };
+  } catch (error) {
+    console.error('Error parsing auth cookie:', error);
+    return { isAuthenticated: false };
+  }
+});
+
 export default component$(() => {
+  const auth = useAuthCheck();
+  
   return (
     <div class="min-h-screen flex flex-col">
-      <Navbar />
+      <Nav isAuthenticated={auth.value.isAuthenticated} />
       <main class="flex-grow container mx-auto px-4 py-8">
         <Slot />
       </main>
       <footer class="bg-gray-800 text-white py-6">
         <div class="container mx-auto px-4">
-          <p class="text-center"> {new Date().getFullYear()} AlsoSpeak. All rights reserved.</p>
+          <p class="text-center">{new Date().getFullYear()} AlsoSpeak. All rights reserved.</p>
         </div>
       </footer>
     </div>

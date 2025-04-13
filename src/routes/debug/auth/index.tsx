@@ -1,10 +1,9 @@
-import { component$, useSignal, $ } from '@builder.io/qwik';
+import { component$, useSignal, $, type Signal } from '@builder.io/qwik'; 
 import { routeLoader$, Form, routeAction$, type DocumentHead } from '@builder.io/qwik-city';
-import { verifyMagicLinkToken, generateMagicLinkToken } from '~/utils/auth';
+import { verifyToken, generateMagicLinkToken } from '~/utils/auth';
 
 // Debug route to test token generation and verification
 export const useDebugAuth = routeLoader$(async ({ cookie }) => {
-  // Get the current auth cookie if it exists
   const authCookie = cookie.get('auth')?.value;
   let authData = null;
   
@@ -32,14 +31,16 @@ export const useDebugAuth = routeLoader$(async ({ cookie }) => {
 
 // Action to generate a test token
 export const useGenerateToken = routeAction$(async ({ email }) => {
-  if (!email) {
+  // Check if email exists and is a string
+  if (typeof email !== 'string' || !email) { 
     return {
       success: false,
-      message: 'Email is required',
+      message: 'Email is required and must be a string',
     };
   }
   
-  const token = generateMagicLinkToken(email);
+  // Now TypeScript knows 'email' is a string here
+  const token = generateMagicLinkToken(email); 
   const baseUrl = process.env.PUBLIC_HOST || 'http://localhost:3000';
   const magicLinkUrl = new URL('/auth/verify', baseUrl);
   magicLinkUrl.searchParams.set('token', token);
@@ -53,42 +54,49 @@ export const useGenerateToken = routeAction$(async ({ email }) => {
 
 // Action to verify a token
 export const useVerifyToken = routeAction$(async ({ token }) => {
-  if (!token) {
+  // Ensure token is a string and not empty
+  if (typeof token !== 'string' || !token) {
     return {
       success: false,
-      message: 'Token is required',
+      message: 'Token is missing or invalid',
     };
   }
   
   try {
     console.log('Debug verify token:', token);
-    const decoded = await verifyMagicLinkToken(token);
+    const decoded = await verifyToken(token); // Pass validated string token
     
     if (!decoded) {
       return {
         success: false,
         message: 'Invalid or expired token',
         tokenInfo: {
-          length: token.length,
-          prefix: token.substring(0, 20) + '...',
+          length: token.length, // Safe now because token is a string
+          prefix: token.substring(0, 20) + '...', // Safe now
         },
       };
     }
     
+    // Token is valid
     return {
       success: true,
       email: decoded.email,
       tokenInfo: {
-        length: token.length,
-        prefix: token.substring(0, 20) + '...',
+        length: token.length, // Safe now
+        prefix: token.substring(0, 20) + '...', // Safe now
       },
     };
   } catch (error) {
     console.error('Token verification error:', error);
+    // Ensure token is checked again for safety before using length/substring
+    const safeTokenInfo = typeof token === 'string' && token 
+      ? { length: token.length, prefix: token.substring(0, 20) + '...' } 
+      : { length: 0, prefix: 'Invalid token' };
     return {
       success: false,
       message: 'Error verifying token',
       error: error instanceof Error ? error.message : String(error),
+      tokenInfo: safeTokenInfo,
     };
   }
 });
@@ -96,19 +104,26 @@ export const useVerifyToken = routeAction$(async ({ token }) => {
 export default component$(() => {
   const debugData = useDebugAuth();
   const generateAction = useGenerateToken();
-  const verifyAction = useVerifyToken();
-  
+  const verifyAction = useVerifyToken(); // Corrected usage
+
   const email = useSignal('test@example.com');
   const token = useSignal('');
   
-  const copyToClipboard = $((text: string) => {
-    navigator.clipboard.writeText(text)
-      .then(() => {
-        alert('Copied to clipboard!');
-      })
-      .catch(err => {
-        console.error('Failed to copy:', err);
-      });
+  // Signals for copying
+  const copiedToken = useSignal(false);
+  const copiedLink = useSignal(false);
+
+  // Function to copy text to clipboard
+  const copyToClipboard = $((text: string | undefined | null, signal: Signal<boolean>) => {
+    if (typeof text === 'string' && text.length > 0) { // Check type and length
+      navigator.clipboard.writeText(text);
+      signal.value = true;
+      setTimeout(() => {
+        signal.value = false;
+      }, 1500);
+    } else {
+      console.error('Attempted to copy invalid text:', text);
+    }
   });
   
   return (
@@ -158,14 +173,16 @@ export default component$(() => {
                 <input 
                   type="text" 
                   value={generateAction.value.token} 
-                  readonly
+                  readOnly
                   class="w-full p-2 border rounded text-sm font-mono"
                 />
                 <button 
-                  onClick$={() => copyToClipboard(generateAction.value?.token || '')}
-                  class="ml-2 bg-gray-200 p-2 rounded"
-                >
-                  Copy
+                  onClick$={async () => {
+                    // Ensure value exists and is a string before copying
+                    copyToClipboard(generateAction.value?.token, copiedToken);
+                  }}
+                  class="ml-2 px-3 py-2 bg-gray-200 rounded text-sm hover:bg-gray-300">
+                  {copiedToken.value ? 'Copied!' : 'Copy'}
                 </button>
               </div>
               
@@ -174,14 +191,16 @@ export default component$(() => {
                 <input 
                   type="text" 
                   value={generateAction.value.magicLinkUrl} 
-                  readonly
+                  readOnly
                   class="w-full p-2 border rounded text-sm font-mono"
                 />
                 <button 
-                  onClick$={() => copyToClipboard(generateAction.value?.magicLinkUrl || '')}
-                  class="ml-2 bg-gray-200 p-2 rounded"
-                >
-                  Copy
+                  onClick$={async () => {
+                     // Ensure value exists and is a string before copying
+                    copyToClipboard(generateAction.value?.magicLinkUrl, copiedLink);
+                  }}
+                  class="ml-2 px-3 py-2 bg-gray-200 rounded text-sm hover:bg-gray-300">
+                  {copiedLink.value ? 'Copied!' : 'Copy'}
                 </button>
               </div>
               <a 

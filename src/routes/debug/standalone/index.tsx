@@ -179,7 +179,7 @@ export default component$(() => {
               <div class="mt-1">
                 <textarea 
                   value={generateToken.value.token} 
-                  readonly
+                  readOnly
                   class="w-full p-2 border rounded text-sm font-mono h-20"
                 />
               </div>
@@ -188,7 +188,7 @@ export default component$(() => {
               <div class="mt-1">
                 <textarea 
                   value={generateToken.value.magicLink} 
-                  readonly
+                  readOnly
                   class="w-full p-2 border rounded text-sm font-mono h-20"
                 />
               </div>
